@@ -144,7 +144,7 @@ void game_board(int *row, int *col) {
 		move(i, left);
 		printw("#");
 		// move(i, right);
-		// printw("#");
+		//  printw("#");
 	}
 }
 
