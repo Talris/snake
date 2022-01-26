@@ -9,7 +9,7 @@ typedef struct snake {
 	struct snake *next, *prev;
 } snake;
 
-void check(snake *s, snake *n);
+int check(snake *s, snake *n);
 void random_star(snake *n);
 
 /*
@@ -99,10 +99,11 @@ void step(snake *s) {
 
 
 void move_snake(snake *s, snake *n) {
+	int is_encountered;
 	hide_star(s);
 	
-	if(s->next && (s->cur_x != s->next->cur_x ||
-			s->cur_y != s->next->cur_y)) 
+	if((s->dx != 0 || s->dy != 0) && s->next && 
+		(s->cur_x != s->next->cur_x || s->cur_y != s->next->cur_y)) 
 	{
 		step(s);
 
@@ -110,8 +111,9 @@ void move_snake(snake *s, snake *n) {
 	s->cur_x += s-> dx;		// new coord of head
 	s->cur_y += s-> dy;
 	
-	check(s, n);
-	
+	is_encountered = check(s, n);
+	if(is_encountered)
+		random_star(n);
 	
 	
 	show_star(s);
@@ -122,17 +124,19 @@ void set_direction(snake *s, int dx, int dy) {
 	s->dy = dy;
 }
 
-void check(snake *s, snake *n) {
+int check(snake *s, snake *n) {
+	int encounter = 0;
 	if(s->cur_x == n->cur_x && s->cur_y == n->cur_y) {
 
 		increase_snake(s, n);
 
-		random_star(n);
-		move(0, 0);
-		printw("connected");
+		
+		encounter = 1;
+		// move(0, 0);
+		// printw("connected");
 	}
 	
-	// return s;
+	return encounter;
 }
 
 void game_board(int *row, int *col) {
