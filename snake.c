@@ -169,8 +169,25 @@ void random_star(snake *n) {
 	
 	// return tmp;
 }
+
+void pause(snake *s, int *dx, int *dy, int *is_paused) {
+	if(*is_paused) {
+		set_direction(s, *dx, *dy);
+		*is_paused = 0;
+	} else {
+		*dx = s->dx;
+		*dy = s->dy;
+		move(0, 0);
+		printw("dx=%d; dy=%d", *dx, *dy);
+		set_direction(s, 0, 0);
+		*is_paused = 1;
+	}
+}
+
 int main() {
 	int key, row, col;
+	int dx, dy;
+	int is_paused;
 	
 	initscr();
 	cbreak();
@@ -182,7 +199,7 @@ int main() {
 	getmaxyx(stdscr, row, col);
 	
 	game_board(&row, &col);
-	// snake s;
+
 	
 	snake head;
 	snake n;
@@ -193,14 +210,17 @@ int main() {
 	head.prev = NULL;
 
 	random_star(&n);
-	// is_paused = 0;
+
 	
 	show_star(&head);
 	set_direction(&head, 0, 0);
+	
+	is_paused = 0;
+	
 	while((key = getch()) != key_escape) {
 		switch(key) {
 			case key_pause:
-				set_direction(&head, 0, 0);
+				pause(&head, &dx, &dy, &is_paused);
 				break;
 			case KEY_UP:
 				set_direction(&head, 0, -1);
