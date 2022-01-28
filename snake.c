@@ -1,7 +1,7 @@
 #include <curses.h>
 #include <stdlib.h>
 
-enum { key_escape = 27, key_pause = 32 };
+enum { key_escape = 27, key_pause = 32, key_new_game = 10 };
 enum { delay_duration = 200 };
 
 typedef struct snake {
@@ -9,9 +9,15 @@ typedef struct snake {
 	struct snake *next, *prev;
 } snake;
 
-int check(snake *s, snake *n);
-void random_star(snake *n);
+typedef struct boundary {
+	int min_x, max_x, min_y, max_y;
+	int is_failed;
+} boundary;
 
+bool check_connection(snake *s, snake *n);
+void random_star(snake *n);
+void collision_check(snake *s, boundary *coord);
+void delete_snake(snake *s);
 /*
 void init(snake *head, snake *n, int *row, int *col) {
 		snake *tmp = malloc(sizeof(snake));
@@ -27,7 +33,7 @@ void init(snake *head, snake *n, int *row, int *col) {
 }
 */
 
-void increase_snake(snake *head, snake *new_el) {	// snake **tail
+void connect(snake *head, snake *new_el) {	// snake **tail
 	snake *tmp = malloc(sizeof(snake));
 	tmp->cur_x = new_el->cur_x;
 	tmp->cur_y = new_el->cur_y;
@@ -79,27 +85,20 @@ void show_star(const snake *s) {
 }
 
 void step(snake *s) {
-	// int x, y;
-	// snake **tmp = s;
 	if (s != NULL) {
-		//return NULL;
-	
 		step(s->next);
-		if(s->prev != NULL) {
-		//return s;
 		
+		if(s->prev != NULL) {
 			s->cur_x = s->prev->cur_x;
 			s->cur_y = s->prev->cur_y;
 		}
-	
-	}
-	//return s;
-	
+	}	
 }
 
 
-void move_snake(snake *s, snake *n) {
-	int is_encountered;
+void move_snake(snake *s, snake *n, boundary *coord) {
+	collision_check(s, coord);
+	
 	hide_star(s);
 	
 	if((s->dx != 0 || s->dy != 0) && s->next && 
@@ -108,13 +107,14 @@ void move_snake(snake *s, snake *n) {
 		step(s);
 
 	}
-	s->cur_x += s-> dx;		// new coord of head
+	// new coord of head
+	s->cur_x += s-> dx;		
 	s->cur_y += s-> dy;
 	
-	is_encountered = check(s, n);
-	if(is_encountered)
+	if(check_connection(s, n)) {
+		connect(s, n);
 		random_star(n);
-	
+	}
 	
 	show_star(s);
 }
@@ -124,37 +124,83 @@ void set_direction(snake *s, int dx, int dy) {
 	s->dy = dy;
 }
 
-int check(snake *s, snake *n) {
-	int encounter = 0;
-	if(s->cur_x == n->cur_x && s->cur_y == n->cur_y) {
-
-		increase_snake(s, n);
-
-		
-		encounter = 1;
-		// move(0, 0);
-		// printw("connected");
-	}
-	
-	return encounter;
+bool check_connection(snake *s, snake *n) {
+	return (s->cur_x == n->cur_x && s->cur_y == n->cur_y);
 }
 
-void game_board(int *row, int *col) {
-	int left = (*col - 2 * *row) - 1;
-	// int right = left + 2 * row - 1;
-	int i;
+void collision_check(snake *s, boundary *coord) {
+	int next_x, next_y;
+	
+	next_x = s->cur_x + s->dx;
+	next_y = s->cur_y + s->dy;
+	
+	// collision with game-board boundaries
+	if(next_x == coord->min_x ||		// left
+		next_y == coord->min_y ||		// up
+		next_x == coord->max_x ||		// right
+		next_y == coord->max_y)			// down
+	{
+		coord->is_failed = 1;
+		set_direction(s, 0, 0);		
+	}
+	
+	s = s->next;
+	// collison with snake`s body
+	while(s) {
+		if(next_x == s->cur_x && next_y == s->cur_y) {
+			coord->is_failed = 1;
+			set_direction(s, 0, 0);
+			break;
+		}
+		s = s->next;
+	}
+}
+/*
+void delete_1(snake *s) {
+	snake *tmp = malloc(sizeof(snake));
+	tmp = s;
+	while(tmp->next) {
+		tmp = tmp->next;
+	}
+	free(tmp);
+}
+*/
+
+void delete_snake(snake *s) {
+	if(s) {
+		delete_snake(s->next);
+		free(s);
+	}
+}
+
+void game_board(boundary *coord, int *row, int *col) {
+	coord->min_x = (*col - 2 * *row) - 1;	// left
+	coord->min_y = 0;						// up
+	coord->max_x = *col - 1;				// right
+	coord->max_y = *row - 1;				// down
+	
+	int i, j;
 	
 	for(i = 0; i < *row; i++) {
-		move(i, left);
-		printw("#");
-		// move(i, right);
-		//  printw("#");
+		for(j = coord->min_x + 1; j < *col; j++) {
+			move(i, coord->min_x);
+			printw("#");
+			if(i == coord->min_y || i == coord->max_y) {
+				move(i, j);
+				printw("#");
+			} else {
+				move(i, j);
+				printw(" ");
+			}
+			move(i, coord->max_x);
+			printw("#");
+		}
 	}
 }
 
 void random_star(snake *n) {
 	int x, y;
-	y = rand() % 24;
+	y = rand() % 22 + 1;
 	x = rand() % 47 + 32;
 	// snake *tmp = malloc(sizeof(snake));
 	
@@ -177,8 +223,8 @@ void pause(snake *s, int *dx, int *dy, int *is_paused) {
 	} else {
 		*dx = s->dx;
 		*dy = s->dy;
-		move(0, 0);
-		printw("dx=%d; dy=%d", *dx, *dy);
+		// move(0, 0);
+		// printw("dx=%d; dy=%d", *dx, *dy);
 		set_direction(s, 0, 0);
 		*is_paused = 1;
 	}
@@ -188,6 +234,8 @@ int main() {
 	int key, row, col;
 	int dx, dy;
 	int is_paused;
+	boundary coord;
+	snake head, n;
 	
 	initscr();
 	cbreak();
@@ -198,51 +246,68 @@ int main() {
 	
 	getmaxyx(stdscr, row, col);
 	
-	game_board(&row, &col);
+	coord.is_failed = 0;
+	game_board(&coord, &row, &col);
 
 	
-	snake head;
-	snake n;
+	//snake head;
+	//snake n;
 
 	head.cur_x = col / 2;
 	head.cur_y = row / 2;
 	head.next = NULL;
 	head.prev = NULL;
-
+	
 	random_star(&n);
 
-	
 	show_star(&head);
 	set_direction(&head, 0, 0);
 	
 	is_paused = 0;
 	
 	while((key = getch()) != key_escape) {
-		switch(key) {
-			case key_pause:
-				pause(&head, &dx, &dy, &is_paused);
-				break;
-			case KEY_UP:
-				set_direction(&head, 0, -1);
-				//move_snake(&head, &n);
-				break;
-			case KEY_RIGHT:
-				set_direction(&head, 1, 0);
-				//move_snake(&head, &n);
-				break;
-			case KEY_DOWN:
-				set_direction(&head, 0, 1);
-				//move_snake(&head, &n);
-				break;
-			case KEY_LEFT:
-				set_direction(&head, -1, 0);
-				//move_snake(&head, &n);
-				break;
-			case ERR:
-				move_snake(&head, &n);
-				break;
-		}
-		
+		if(coord.is_failed == 0) {
+			switch(key) {
+				case key_pause:
+					pause(&head, &dx, &dy, &is_paused);
+					break;
+				case KEY_UP:
+					set_direction(&head, 0, -1);
+					break;
+				case KEY_RIGHT:
+					set_direction(&head, 1, 0);
+					break;
+				case KEY_DOWN:
+					set_direction(&head, 0, 1);
+					break;
+				case KEY_LEFT:
+					set_direction(&head, -1, 0);
+
+					break;
+				case ERR:
+					move_snake(&head, &n, &coord);
+					break;
+			} 
+		} else {
+			switch(key) {
+				case key_new_game:
+					coord.is_failed = 0;
+					game_board(&coord, &row, &col);
+					
+					delete_snake(head.next);
+					
+					head.cur_x = col / 2;
+					head.cur_y = row / 2;
+					head.next = NULL;
+					head.prev = NULL;
+					
+					random_star(&n);
+
+					show_star(&head);
+					set_direction(&head, 0, 0);
+					break;
+			}	
+		}		
 	}
 	endwin();
 	
