@@ -1,18 +1,19 @@
 #include <curses.h>
 #include <time.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 #define CPS CLOCKS_PER_SEC
+#define MAX_LENGTH 500
 #define SNAKE_BODY '&'
 #define BONUS '*'
 
 enum { key_escape = 27, key_pause = 32, key_new_game = 10 };
-enum { delay_duration = 200 };
+// enum { delay_duration = 200 };
 
 typedef struct snake {
-	int cur_x, cur_y, dx, dy;
-	struct snake *next, *prev;
+	int x, y;
 } snake;
 
 typedef struct boundary {
@@ -21,11 +22,12 @@ typedef struct boundary {
 } boundary;
 static int score = 0;
 
-bool check_connection(snake *s, snake *n);
-void random_star(snake *n);
-void collision_check(snake *s, boundary *coord, int x, int y);
-void delete_snake(snake *s);
-void stop_snake(snake *s, int *var);
+
+bool check_connection(snake *, snake *);
+void random_star(snake *);
+void collision_check(snake *, boundary *, int *, int *, int *);
+// void delete_snake(snake *s);
+void stop_snake(int *, int *, int *);
 /*
 void init(snake *head, snake *n, int *row, int *col) {
 		snake *tmp = malloc(sizeof(snake));
@@ -40,7 +42,7 @@ void init(snake *head, snake *n, int *row, int *col) {
 		random_star(n);
 }
 */
-
+/*
 void connect(snake *head, snake *new_el) {	// snake **tail
 	snake *tmp = malloc(sizeof(snake));
 	tmp->cur_x = new_el->cur_x;
@@ -60,38 +62,21 @@ void connect(snake *head, snake *new_el) {	// snake **tail
 	
 	// return head;
 }
-
-void hide_snake(const snake *s) {
-	while(s != NULL) {
-	// move(tmp->cur_y, tmp->cur_x);
-		move(s->cur_y, s->cur_x);
+*/
+void hide_tail(snake *s, int *length) {
+	
+		move(s[*length - 1].y, s[*length - 1].x);
 		addch(' ');
-		s = s->next;
-	}
 	refresh();
 }
 
-void show_snake(const snake *s) {
-	//snake *tmp = s;
-	int n = 3;
-	while(s != NULL) {
-	
-		move(s->cur_y, s->cur_x);
+void show_head(int x, int y) {
+		move(y, x);
 		addch(SNAKE_BODY);
-		/*
-		move(n, 0);
-		printw("move(%d, %d)", s->cur_y, s->cur_x);
-		n++;
-		*/
-		s = s->next;
-		
-	}
-	//move(1, 0);
-	//printw("%d", n);
 	refresh();
 	
 }
-
+/*
 void step(snake *s) {
 	if (s != NULL) {
 		step(s->next);
@@ -102,34 +87,51 @@ void step(snake *s) {
 		}
 	}	
 }
+*/
 
+void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, int *dy) {
 
-void move_snake(snake *s, snake *n, boundary *coord) {
-	int x = s->cur_x + s->dx;
-	int y = s->cur_y + s->dy;
-	collision_check(s, coord, x, y);
-	
-	hide_snake(s);
-	// 
-	if((s->dx != 0 || s->dy != 0) && s->next &&
-		// after eating n, head and n is equal, so need to move only head
-		(s->cur_x != s->next->cur_x || s->cur_y != s->next->cur_y)) 
-	{
-		step(s);
-
+	collision_check(s, coord, length, dx, dy);
+	/*
+	int i;
+	move(5, 0);
+	printw("l=%d, score=%d", *length, score);
+	for(i = 0; i < *length; i++) {
+		move(7 + i, 0);
+		printw("x=%d; y=%d", s[i].x, s[i].y);
 	}
-	// new coord of head
-	s->cur_x = x;		
-	s->cur_y = y;
+	// int grow = 0;
+	*/
+	if(*dx != 0 || *dy != 0) {
 	
-	if(check_connection(s, n)) {
-		connect(s, n);
-		random_star(n);
+	int x = s->x + *dx;
+	int y = s->y + *dy;
+	
+	
+	show_head(x, y);
+	
+	hide_tail(s, length);
+
+	memmove(s + 1, s, (*length) * (sizeof(s[0])));
+
+	
+	s->x = x;
+	s->y = y;
+	
+	
+	if(check_connection(s, bonus)) {
+		(*length)++;
+		random_star(bonus);
+	}
+
+	// score++;
+	
+	
 	}
 	
-	show_snake(s);
+	
 }
-
+/*
 void set_direction(snake *s, int dx, int dy) {
 	if((s->dx == 0 && s->dy == 0) || (s->dx != 0 && dx == 0) || 
 		(s->dy != 0 && dy == 0)) {
@@ -137,15 +139,16 @@ void set_direction(snake *s, int dx, int dy) {
 		s->dy = dy;
 	}
 }
-
-bool check_connection(snake *s, snake *n) {
-	return (s->cur_x == n->cur_x && s->cur_y == n->cur_y);
+*/
+bool check_connection(snake *s, snake *bonus) {
+	return (s->x == bonus->x && s->y == bonus->y);
 }
 
-void collision_check(snake *s, boundary *coord, int x, int y) {
-	
-	move(0, 0);
-	printw("s->dx=%d, s->dy=%d", s->dx, s->dy);
+void collision_check(snake *s, boundary *coord, int *length, int *dx, int *dy) {
+	int x = s->x + *dx;
+	int y = s->y + *dy;
+	//move(0, 0);
+	//printw("s->dx=%d, s->dy=%d", s->dx, s->dy);
 	
 	
 	// collision with game-board boundaries
@@ -154,16 +157,16 @@ void collision_check(snake *s, boundary *coord, int x, int y) {
 		x == coord->max_x ||		// right
 		y == coord->max_y)			// down
 	{
-		stop_snake(s, &(coord->is_failed));
+		stop_snake(&(coord->is_failed), dx, dy);
 	}	
 	// collison with snake`s body
-	int i = 3;
+	int i;
 	
-	for(s = s->next; s != NULL; s = s->next) {
-		move(i, 0);
-		printw("n_x=%d,c_x=%d,n_y=%d,c_y=%d", x, s->cur_x, y, s->cur_y);
-		if(x == s->cur_x && y == s->cur_y) {
-			stop_snake(s, &(coord->is_failed));
+	for(i = 1; i < *length; i++) {
+		//move(i, 0);
+		//printw("n_x=%d,c_x=%d,n_y=%d,c_y=%d", x, s->cur_x, y, s->cur_y);
+		if(x == s[i].x && y == s[i].y) {
+			stop_snake(&(coord->is_failed), dx, dy);
 			//move(0, 0);
 			//printw("snake collision");
 			break;
@@ -173,9 +176,10 @@ void collision_check(snake *s, boundary *coord, int x, int y) {
 	}
 }
 
-void stop_snake(snake *s, int *var) { 
+void stop_snake(int *var, int *dx, int *dy) { 
 	*var = 1;
-	set_direction(s, 0, 0);
+	*dx = 0;
+	*dy = 0;
 }
 
 /*
@@ -188,14 +192,14 @@ void delete_1(snake *s) {
 	free(tmp);
 }
 */
-
+/*
 void delete_snake(snake *s) {
 	if(s) {
 		delete_snake(s->next);
 		free(s);
 	}
 }
-
+*/
 void game_board(boundary *coord, int *row, int *col) {
 	int i, j;
 	
@@ -221,57 +225,62 @@ void game_board(boundary *coord, int *row, int *col) {
 	}
 }
 
-void random_star(snake *n) {
+void random_star(snake *bonus) {
 	int x, y;
 	y = rand() % 22 + 1;
 	x = rand() % 47 + 32;
-	// snake *tmp = malloc(sizeof(snake));
+
 	
-	n->cur_x = x;
-	n->cur_y = y;
-	n->next = NULL;
+	bonus->x = x;
+	bonus->y = y;
 	
-	move(n->cur_y, n->cur_x);
+	move(bonus->y, bonus->x);
 	addch(BONUS);
 
-	refresh();
+	// refresh();
 	
-	// return tmp;
+	
 }
 
-void pause(snake *s, int *dx, int *dy, int *is_paused) {
+void pause(int *dx, int *dy, int *save_x, int *save_y, int *is_paused) {
 	if(*is_paused) {
-		set_direction(s, *dx, *dy);
+		*dx = *save_x;
+		*dy = *save_y;
 		*is_paused = 0;
 	} else {
-		*dx = s->dx;
-		*dy = s->dy;
+		*save_x = *dx;
+		*save_y = *dy;
 		// move(0, 0);
 		// printw("dx=%d; dy=%d", *dx, *dy);
-		stop_snake(s, is_paused);
+		stop_snake(is_paused, dx, dy);
 		
 	}
 }
 
 int main() {
 	int key, row, col;
-	int dx, dy;
-	int is_paused, key_pressed;
-	boundary coord;
-	snake head, n;
+	int dx = 0, dy = 0;
+	int save_x, save_y;
 	
-
+	int is_paused, key_pressed;
+	
+	boundary coord;
+	snake s [MAX_LENGTH], bonus;
+	int length = 3;
+	int i;
+	
+	// srand(time(NULL));
+	
 	int run = 1;
 	clock_t movt;
 	
 	initscr();
-	// cbreak();
+
 	nodelay(stdscr, 1);
 	keypad(stdscr, 1);
 	noecho();
 	curs_set(0);
-	// timeout(delay_duration);
-	// halfdelay(2);
+
 	getmaxyx(stdscr, row, col);
 	
 	coord.is_failed = 0;
@@ -281,63 +290,71 @@ int main() {
 	//snake head;
 	//snake n;
 
-	head.cur_x = col / 2;
-	head.cur_y = row / 2;
-	head.next = NULL;
-	head.prev = NULL;
-	
-	random_star(&n);
+	int x = col / 2;
+	int y = row / 2;
 
-	show_snake(&head);
-	set_direction(&head, 0, 0);
+	random_star(&bonus);
+	
+	for(i = 0; i < length; i++) {
+		s[i].x = x - i;
+		s[i].y = y;
+		
+		show_head(s[i].x, s[i].y);
+		
+
+		
+	}
+	// set_direction(&head, 0, 0);
 	
 	is_paused = 0;
-	key_pressed = 0;
+	//key_pressed = 0;
 	movt = clock();
 	
 	while(run) {
 		// if(key_pressed == 0)
 		key = getch();
 		
-		if(coord.is_failed == 0) {
+		//if(coord.is_failed == 0) {
 			if(is_paused == 0) { //  && key_pressed == 0
 				switch(key) {
 					case key_escape:
 						run = 0;
 						break;					
 					case KEY_UP:						
-						set_direction(&head, 0, -1);
-						key_pressed = 1;
+						dx = 0, 
+						dy = -1;						
 						break;
 					case KEY_RIGHT:						
-						set_direction(&head, 1, 0);
-						key_pressed = 1;				
+						dx = 1;
+						dy = 0;						
 						break;
 					case KEY_DOWN:						
-						set_direction(&head, 0, 1);
-						key_pressed = 1;			
+						dx = 0;
+						dy = 1;									
 						break;
 					case KEY_LEFT:					
-						set_direction(&head, -1, 0);	
-						key_pressed = 1;			
+						dx = -1;
+						dy = 0;				
 						break;
 					
 				}
 			}
 			
 			if(clock() - movt >= CPS * 0.2) {
-				move_snake(&head, &n, &coord);
+				move_snake(s, &length, &bonus, &coord, &dx, &dy);
 				movt += CPS * 0.2;
 				// key_pressed = 0;
 			}
-		}
+		//}
+		
 		switch(key) {
 			case key_pause:
-				pause(&head, &dx, &dy, &is_paused);
+				pause(&dx, &dy, &save_x, &save_y, &is_paused);
 				break;
 			case key_escape:
 				run = 0;
 				break;
+				/*
 			case key_new_game:
 				coord.is_failed = 0;
 				is_paused = 0;
@@ -356,6 +373,7 @@ int main() {
 				show_snake(&head);
 				set_direction(&head, 0, 0);
 				break;
+				*/
 		}	
 
 	}
