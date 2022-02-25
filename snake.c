@@ -23,9 +23,10 @@ typedef struct boundary {
 static int score = 0;
 
 
-bool check_connection(snake *, snake *);
-void random_star(snake *);
-void collision_check(snake *, boundary *, int *, int *, int *);
+void check_bonus(snake *, snake *, int *);
+void create_bonus(snake *);
+bool boundary_collision(boundary *, int , int );
+bool body_collision(snake *, int *, int , int );
 // void delete_snake(snake *s);
 void stop_snake(int *, int *, int *);
 /*
@@ -42,138 +43,69 @@ void init(snake *head, snake *n, int *row, int *col) {
 		random_star(n);
 }
 */
-/*
-void connect(snake *head, snake *new_el) {	// snake **tail
-	snake *tmp = malloc(sizeof(snake));
-	tmp->cur_x = new_el->cur_x;
-	tmp->cur_y = new_el->cur_y;
-	
-	tmp->next = head->next;
-	tmp->prev = head;
-	if(tmp->next)
-		tmp->next->prev = tmp;
-	
-	head->next = tmp;
-	
-	score += 1;
-	move(2, 0);
-	printw("Your score: %d", score);
-	//n++;
-	
-	// return head;
-}
-*/
+
 void hide_tail(snake *s, int *length) {
-	
-		move(s[*length - 1].y, s[*length - 1].x);
-		addch(' ');
+	move(s[*length - 1].y, s[*length - 1].x);
+	addch(' ');
 	refresh();
 }
 
 void show_head(int x, int y) {
-		move(y, x);
-		addch(SNAKE_BODY);
+	move(y, x);
+	addch(SNAKE_BODY);
 	refresh();
 	
 }
-/*
-void step(snake *s) {
-	if (s != NULL) {
-		step(s->next);
-		
-		if(s->prev != NULL) {
-			s->cur_x = s->prev->cur_x;
-			s->cur_y = s->prev->cur_y;
-		}
-	}	
-}
-*/
 
 void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, int *dy) {
 
-	collision_check(s, coord, length, dx, dy);
-	/*
-	int i;
-	move(5, 0);
-	printw("l=%d, score=%d", *length, score);
-	for(i = 0; i < *length; i++) {
-		move(7 + i, 0);
-		printw("x=%d; y=%d", s[i].x, s[i].y);
-	}
-	// int grow = 0;
-	*/
-	if(*dx != 0 || *dy != 0) {
-	
 	int x = s->x + *dx;
 	int y = s->y + *dy;
 	
-	
-	show_head(x, y);
-	
-	hide_tail(s, length);
-
-	memmove(s + 1, s, (*length) * (sizeof(s[0])));
-
-	
-	s->x = x;
-	s->y = y;
-	
-	
-	if(check_connection(s, bonus)) {
-		(*length)++;
-		random_star(bonus);
-	}
-
-	// score++;
-	
-	
-	}
-	
-	
-}
-/*
-void set_direction(snake *s, int dx, int dy) {
-	if((s->dx == 0 && s->dy == 0) || (s->dx != 0 && dx == 0) || 
-		(s->dy != 0 && dy == 0)) {
-		s->dx = dx;
-		s->dy = dy;
-	}
-}
-*/
-bool check_connection(snake *s, snake *bonus) {
-	return (s->x == bonus->x && s->y == bonus->y);
-}
-
-void collision_check(snake *s, boundary *coord, int *length, int *dx, int *dy) {
-	int x = s->x + *dx;
-	int y = s->y + *dy;
-	//move(0, 0);
-	//printw("s->dx=%d, s->dy=%d", s->dx, s->dy);
-	
-	
-	// collision with game-board boundaries
-	if(x == coord->min_x ||		// left
-		y == coord->min_y ||		// up
-		x == coord->max_x ||		// right
-		y == coord->max_y)			// down
+	if(boundary_collision(coord, x, y) || 
+		body_collision(s, length, x, y)) 
 	{
 		stop_snake(&(coord->is_failed), dx, dy);
-	}	
-	// collison with snake`s body
+	}
+	
+	if(*dx != 0 || *dy != 0) {	
+		show_head(x, y);
+		hide_tail(s, length);
+
+		memmove(s + 1, s, (*length) * (sizeof(s[0])));
+	
+		s->x = x;
+		s->y = y;
+		
+		check_bonus(s, bonus, length);
+	}
+}
+
+void check_bonus(snake *s, snake *bonus, int *length) {
+	if(s->x == bonus->x && s->y == bonus->y) {
+		(*length)++;
+		create_bonus(bonus);
+	}
+}
+
+bool boundary_collision(boundary *coord, int x, int y) {
+	
+	return (x == coord->min_x ||		// left
+			y == coord->min_y ||		// up
+			x == coord->max_x ||		// right
+			y == coord->max_y);			// down
+}
+
+bool body_collision(snake *s, int *length, int x, int y) {
 	int i;
 	
 	for(i = 1; i < *length; i++) {
-		//move(i, 0);
-		//printw("n_x=%d,c_x=%d,n_y=%d,c_y=%d", x, s->cur_x, y, s->cur_y);
 		if(x == s[i].x && y == s[i].y) {
-			stop_snake(&(coord->is_failed), dx, dy);
-			//move(0, 0);
-			//printw("snake collision");
-			break;
+			return true;
 		}
 		i++;
-
 	}
+	return false;
 }
 
 void stop_snake(int *var, int *dx, int *dy) { 
@@ -225,12 +157,11 @@ void game_board(boundary *coord, int *row, int *col) {
 	}
 }
 
-void random_star(snake *bonus) {
+void create_bonus(snake *bonus) {
 	int x, y;
 	y = rand() % 22 + 1;
 	x = rand() % 47 + 32;
 
-	
 	bonus->x = x;
 	bonus->y = y;
 	
@@ -286,25 +217,17 @@ int main() {
 	coord.is_failed = 0;
 	game_board(&coord, &row, &col);
 
-	
-	//snake head;
-	//snake n;
-
 	int x = col / 2;
 	int y = row / 2;
 
-	random_star(&bonus);
+	create_bonus(&bonus);
 	
 	for(i = 0; i < length; i++) {
 		s[i].x = x - i;
 		s[i].y = y;
 		
-		show_head(s[i].x, s[i].y);
-		
-
-		
+		show_head(s[i].x, s[i].y);	
 	}
-	// set_direction(&head, 0, 0);
 	
 	is_paused = 0;
 	//key_pressed = 0;
