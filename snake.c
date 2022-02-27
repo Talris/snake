@@ -8,6 +8,9 @@
 #define MAX_LENGTH 500
 #define SNAKE_BODY '&'
 #define BONUS '*'
+#define START_LENGTH 3
+// #define print(x, y, str) do{ move(y, x); printw(str); } while(0);
+
 
 enum { key_escape = 27, key_pause = 32, key_new_game = 10 };
 // enum { delay_duration = 200 };
@@ -20,29 +23,39 @@ typedef struct boundary {
 	int min_x, max_x, min_y, max_y;
 	int is_failed;
 } boundary;
-static int score = 0;
+static int score;
 
-
+void game_field(boundary *, int , int );	// create new game gield
+void show_head(int , int );
 void check_bonus(snake *, snake *, int *);
 void create_bonus(snake *);
 bool boundary_collision(boundary *, int , int );
 bool body_collision(snake *, int *, int , int );
-// void delete_snake(snake *s);
+void delete_snake(snake *, int *);
 void stop_snake(int *, int *, int *);
-/*
-void init(snake *head, snake *n, int *row, int *col) {
-		snake *tmp = malloc(sizeof(snake));
-		tmp->cur_x = *col / 2;
-		tmp->cur_y = *row / 2;
-		tmp->next = NULL;
-		tmp->prev = NULL;
-		head = tmp;
+void info();
+
+void init(snake *s, snake *bonus, boundary *coord, int *length) {
+	int row, col;
+	getmaxyx(stdscr, row, col);
+	score = 0;
+	coord->is_failed = 0;
+	game_field(coord, row, col);
+	
+	int x = col / 2;
+	int y = row / 2;
+	
+	*length = START_LENGTH;
+	int i;
+	for(i = 0; i < *length; i++) {
+		s[i].x = x - i;
+		s[i].y = y;
 		
-		snake *new_el = malloc(sizeof(snake));
-		n = new_el;
-		random_star(n);
+		show_head(s[i].x, s[i].y);	
+	}
+	
+	create_bonus(bonus);
 }
-*/
 
 void hide_tail(snake *s, int *length) {
 	move(s[*length - 1].y, s[*length - 1].x);
@@ -66,6 +79,8 @@ void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, i
 		body_collision(s, length, x, y)) 
 	{
 		stop_snake(&(coord->is_failed), dx, dy);
+		move(7, 12);
+		printw("Game Over");
 	}
 	
 	if(*dx != 0 || *dy != 0) {	
@@ -84,6 +99,11 @@ void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, i
 void check_bonus(snake *s, snake *bonus, int *length) {
 	if(s->x == bonus->x && s->y == bonus->y) {
 		(*length)++;
+		score++;
+
+		move(1, 0);
+		printw("Score: %d", score);
+		
 		create_bonus(bonus);
 	}
 }
@@ -114,34 +134,20 @@ void stop_snake(int *var, int *dx, int *dy) {
 	*dy = 0;
 }
 
-/*
-void delete_1(snake *s) {
-	snake *tmp = malloc(sizeof(snake));
-	tmp = s;
-	while(tmp->next) {
-		tmp = tmp->next;
-	}
-	free(tmp);
+void delete_snake(snake *s, int *length) {
+	memset(s, 0, (*length) * sizeof(s[0]));
 }
-*/
-/*
-void delete_snake(snake *s) {
-	if(s) {
-		delete_snake(s->next);
-		free(s);
-	}
-}
-*/
-void game_board(boundary *coord, int *row, int *col) {
+
+void game_field(boundary *coord, int row, int col) {
 	int i, j;
 	
-	coord->min_x = (*col - 2 * *row) - 1;	// left
-	coord->min_y = 0;						// up
-	coord->max_x = *col - 1;				// right
-	coord->max_y = *row - 1;				// down
+	coord->min_x = (col - 2 * row) - 1;	// left
+	coord->min_y = 0;					// up
+	coord->max_x = col - 1;				// right
+	coord->max_y = row - 1;				// down
 	
-	for(i = 0; i < *row; i++) {
-		for(j = coord->min_x + 1; j < *col; j++) {
+	for(i = 0; i < row; i++) {
+		for(j = coord->min_x + 1; j < col; j++) {
 			move(i, coord->min_x);
 			printw("#");
 			if(i == coord->min_y || i == coord->max_y) {
@@ -155,6 +161,30 @@ void game_board(boundary *coord, int *row, int *col) {
 			printw("#");
 		}
 	}
+	move(7, 12);
+	printw("         ");	// 9 spaces to hide "Game Over"
+	info();
+}
+
+void info() {
+	move(0, 13);
+	printw("Snake");
+
+	move(1, 0);
+	printw("Score: %d", score);
+
+	move(15, 0);
+	printw("To start a game press any");
+	move(16, 0);
+	printw("arrow key");
+	
+	move(18, 0);
+	printw("To pause a game press <Space>");
+	
+	move(20, 0);
+	printw("To start a new game press");
+	move(21, 0);
+	printw("<Enter>");
 }
 
 void create_bonus(snake *bonus) {
@@ -178,28 +208,29 @@ void pause(int *dx, int *dy, int *save_x, int *save_y, int *is_paused) {
 		*dx = *save_x;
 		*dy = *save_y;
 		*is_paused = 0;
+		move(7, 14);
+		printw("     ");
 	} else {
 		*save_x = *dx;
 		*save_y = *dy;
-		// move(0, 0);
-		// printw("dx=%d; dy=%d", *dx, *dy);
 		stop_snake(is_paused, dx, dy);
-		
+		move(7, 14);
+		printw("Pause");
 	}
 }
 
 int main() {
-	int key, row, col;
+	int key;
 	int dx = 0, dy = 0;
 	int save_x, save_y;
 	
-	int is_paused, key_pressed;
+	int is_paused; // key_pressed;
 	
 	boundary coord;
-	snake s [MAX_LENGTH], bonus;
-	int length = 3;
-	int i;
-	
+	snake s [MAX_LENGTH]; 
+	snake bonus;
+	int length;
+		
 	// srand(time(NULL));
 	
 	int run = 1;
@@ -212,23 +243,8 @@ int main() {
 	noecho();
 	curs_set(0);
 
-	getmaxyx(stdscr, row, col);
-	
-	coord.is_failed = 0;
-	game_board(&coord, &row, &col);
+	init(s, &bonus, &coord, &length);
 
-	int x = col / 2;
-	int y = row / 2;
-
-	create_bonus(&bonus);
-	
-	for(i = 0; i < length; i++) {
-		s[i].x = x - i;
-		s[i].y = y;
-		
-		show_head(s[i].x, s[i].y);	
-	}
-	
 	is_paused = 0;
 	//key_pressed = 0;
 	movt = clock();
@@ -237,12 +253,13 @@ int main() {
 		// if(key_pressed == 0)
 		key = getch();
 		
-		//if(coord.is_failed == 0) {
+		if(coord.is_failed == 0) {
 			if(is_paused == 0) { //  && key_pressed == 0
 				switch(key) {
-					case key_escape:
+					/*case key_escape:
 						run = 0;
-						break;					
+						break;	
+						*/				
 					case KEY_UP:						
 						dx = 0, 
 						dy = -1;						
@@ -268,35 +285,25 @@ int main() {
 				movt += CPS * 0.2;
 				// key_pressed = 0;
 			}
-		//}
+		}
 		
 		switch(key) {
 			case key_pause:
-				pause(&dx, &dy, &save_x, &save_y, &is_paused);
+				if(coord.is_failed == 0)
+					pause(&dx, &dy, &save_x, &save_y, &is_paused);
 				break;
 			case key_escape:
 				run = 0;
 				break;
-				/*
+				
 			case key_new_game:
-				coord.is_failed = 0;
+				stop_snake(&(coord.is_failed), &dx, &dy);
 				is_paused = 0;
-				score = 0;
-				game_board(&coord, &row, &col);
-					
-				delete_snake(head.next);
-					
-				head.cur_x = col / 2;
-				head.cur_y = row / 2;
-				head.next = NULL;
-				head.prev = NULL;
-					
-				random_star(&n);
 
-				show_snake(&head);
-				set_direction(&head, 0, 0);
+				delete_snake(s, &length);
+				init(s, &bonus, &coord, &length);
 				break;
-				*/
+				
 		}	
 
 	}
