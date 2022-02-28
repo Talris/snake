@@ -24,6 +24,9 @@ typedef struct boundary {
 	int is_failed;
 } boundary;
 static int score;
+static int std_color = 0;
+static int snake_color = 1;
+static int bonus_color = 2;
 
 void game_field(boundary *, int , int );	// create new game gield
 void show_head(int , int );
@@ -52,6 +55,7 @@ void init(snake *s, snake *bonus, boundary *coord, int *length) {
 		s[i].y = y;
 		
 		show_head(s[i].x, s[i].y);	
+		
 	}
 	
 	create_bonus(bonus);
@@ -64,10 +68,13 @@ void hide_tail(snake *s, int *length) {
 }
 
 void show_head(int x, int y) {
+	attr_set(A_BOLD, snake_color, NULL);
 	move(y, x);
 	addch(SNAKE_BODY);
 	refresh();
 	
+	attr_set(A_NORMAL, std_color, NULL);
+	refresh();
 }
 
 void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, int *dy) {
@@ -93,6 +100,7 @@ void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, i
 		s->y = y;
 		
 		check_bonus(s, bonus, length);
+		
 	}
 }
 
@@ -100,7 +108,7 @@ void check_bonus(snake *s, snake *bonus, int *length) {
 	if(s->x == bonus->x && s->y == bonus->y) {
 		(*length)++;
 		score++;
-
+		// battr_set(A_NORMAL, std_color, NULL);
 		move(1, 0);
 		printw("Score: %d", score);
 		
@@ -146,6 +154,8 @@ void game_field(boundary *coord, int row, int col) {
 	coord->max_x = col - 1;				// right
 	coord->max_y = row - 1;				// down
 	
+	// attr_set(A_NORMAL, std_color, NULL);
+	
 	for(i = 0; i < row; i++) {
 		for(j = coord->min_x + 1; j < col; j++) {
 			move(i, coord->min_x);
@@ -164,6 +174,7 @@ void game_field(boundary *coord, int row, int col) {
 	move(7, 12);
 	printw("         ");	// 9 spaces to hide "Game Over"
 	info();
+	// refresh();
 }
 
 void info() {
@@ -195,13 +206,18 @@ void create_bonus(snake *bonus) {
 	bonus->x = x;
 	bonus->y = y;
 	
+	attr_set(A_BOLD, bonus_color, NULL);
 	move(bonus->y, bonus->x);
 	addch(BONUS);
 
-	// refresh();
+	refresh();
 	
+	attr_set(A_NORMAL, std_color, NULL);
+	refresh();
 	
 }
+
+
 
 void pause(int *dx, int *dy, int *save_x, int *save_y, int *is_paused) {
 	if(*is_paused) {
@@ -237,11 +253,17 @@ int main() {
 	clock_t movt;
 	
 	initscr();
-
+	start_color();
+	
 	nodelay(stdscr, 1);
 	keypad(stdscr, 1);
 	noecho();
 	curs_set(0);
+
+	init_pair(snake_color, COLOR_GREEN, COLOR_BLACK);
+	init_pair(bonus_color, COLOR_RED, COLOR_BLACK);
+	// 
+
 
 	init(s, &bonus, &coord, &length);
 
