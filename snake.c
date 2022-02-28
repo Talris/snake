@@ -13,7 +13,6 @@
 
 
 enum { key_escape = 27, key_pause = 32, key_new_game = 10 };
-// enum { delay_duration = 200 };
 
 typedef struct snake {
 	int x, y;
@@ -24,9 +23,9 @@ typedef struct boundary {
 	int is_failed;
 } boundary;
 static int score;
-static int std_color = 0;
-static int snake_color = 1;
-static int bonus_color = 2;
+static const int std_color = 0;
+static const int snake_color = 1;
+static const int bonus_color = 2;
 
 void game_field(boundary *, int , int );	// create new game gield
 void show_head(int , int );
@@ -55,16 +54,21 @@ void init(snake *s, snake *bonus, boundary *coord, int *length) {
 		s[i].y = y;
 		
 		show_head(s[i].x, s[i].y);	
-		
 	}
-	
 	create_bonus(bonus);
 }
 
-void hide_tail(snake *s, int *length) {
-	move(s[*length - 1].y, s[*length - 1].x);
-	addch(' ');
-	refresh();
+void hide_tail(snake *s, snake *bonus, int *length) {
+	int x = s[*length - 1].x;
+	int y = s[*length - 1].y;
+	
+	//conditional statement don`t allow func to hide
+	// bonus if it emerges on the snake`s tail
+	if(x != bonus->x || y != bonus->y) {
+		move(y, x);
+		addch(' ');
+		refresh();
+	}
 }
 
 void show_head(int x, int y) {
@@ -92,7 +96,7 @@ void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, i
 	
 	if(*dx != 0 || *dy != 0) {	
 		show_head(x, y);
-		hide_tail(s, length);
+		hide_tail(s, bonus, length);
 
 		memmove(s + 1, s, (*length) * (sizeof(s[0])));
 	
@@ -108,7 +112,6 @@ void check_bonus(snake *s, snake *bonus, int *length) {
 	if(s->x == bonus->x && s->y == bonus->y) {
 		(*length)++;
 		score++;
-		// battr_set(A_NORMAL, std_color, NULL);
 		move(1, 0);
 		printw("Score: %d", score);
 		
@@ -154,8 +157,6 @@ void game_field(boundary *coord, int row, int col) {
 	coord->max_x = col - 1;				// right
 	coord->max_y = row - 1;				// down
 	
-	// attr_set(A_NORMAL, std_color, NULL);
-	
 	for(i = 0; i < row; i++) {
 		for(j = coord->min_x + 1; j < col; j++) {
 			move(i, coord->min_x);
@@ -174,7 +175,6 @@ void game_field(boundary *coord, int row, int col) {
 	move(7, 12);
 	printw("         ");	// 9 spaces to hide "Game Over"
 	info();
-	// refresh();
 }
 
 void info() {
@@ -217,8 +217,6 @@ void create_bonus(snake *bonus) {
 	
 }
 
-
-
 void pause(int *dx, int *dy, int *save_x, int *save_y, int *is_paused) {
 	if(*is_paused) {
 		*dx = *save_x;
@@ -247,7 +245,7 @@ int main() {
 	snake bonus;
 	int length;
 		
-	// srand(time(NULL));
+	srand(time(NULL));
 	
 	int run = 1;
 	clock_t movt;
@@ -278,10 +276,6 @@ int main() {
 		if(coord.is_failed == 0) {
 			if(is_paused == 0) { //  && key_pressed == 0
 				switch(key) {
-					/*case key_escape:
-						run = 0;
-						break;	
-						*/				
 					case KEY_UP:						
 						dx = 0, 
 						dy = -1;						
