@@ -20,8 +20,9 @@ typedef struct snake {
 
 typedef struct boundary {
 	int min_x, max_x, min_y, max_y;
-	int is_failed;
+	bool is_failed;
 } boundary;
+
 static int score;
 static const int std_color = 0;
 static const int snake_color = 1;
@@ -34,7 +35,7 @@ void create_bonus(snake *);
 bool boundary_collision(boundary *, int , int );
 bool body_collision(snake *, int *, int , int );
 void delete_snake(snake *, int *);
-void stop_snake(int *, int *, int *);
+void stop_snake(bool *, int *, int *);
 void info();
 
 void init(snake *s, snake *bonus, boundary *coord, int *length) {
@@ -130,7 +131,7 @@ bool boundary_collision(boundary *coord, int x, int y) {
 bool body_collision(snake *s, int *length, int x, int y) {
 	int i;
 	
-	for(i = 1; i < *length; i++) {
+	for(i = 3; i < *length; i++) {
 		if(x == s[i].x && y == s[i].y) {
 			return true;
 		}
@@ -139,7 +140,7 @@ bool body_collision(snake *s, int *length, int x, int y) {
 	return false;
 }
 
-void stop_snake(int *var, int *dx, int *dy) { 
+void stop_snake(bool *var, int *dx, int *dy) { 
 	*var = 1;
 	*dx = 0;
 	*dy = 0;
@@ -217,11 +218,11 @@ void create_bonus(snake *bonus) {
 	
 }
 
-void pause(int *dx, int *dy, int *save_x, int *save_y, int *is_paused) {
+void pause(int *dx, int *dy, int *save_x, int *save_y, bool *is_paused) {
 	if(*is_paused) {
 		*dx = *save_x;
 		*dy = *save_y;
-		*is_paused = 0;
+		*is_paused = false;
 		move(7, 14);
 		printw("     ");
 	} else {
@@ -238,8 +239,9 @@ int main() {
 	int dx = 0, dy = 0;
 	int save_x, save_y;
 	
-	int is_paused; // key_pressed;
-	
+	bool is_paused = false, key_pressed = false;
+	bool left = false, up = false, right = false, down = false;
+		
 	boundary coord;
 	snake s [MAX_LENGTH]; 
 	snake bonus;
@@ -265,47 +267,65 @@ int main() {
 
 	init(s, &bonus, &coord, &length);
 
-	is_paused = 0;
-	//key_pressed = 0;
 	movt = clock();
 	
 	while(run) {
-		// if(key_pressed == 0)
 		key = getch();
 		
-		if(coord.is_failed == 0) {
-			if(is_paused == 0) { //  && key_pressed == 0
-				switch(key) {
-					case KEY_UP:						
-						dx = 0, 
-						dy = -1;						
-						break;
-					case KEY_RIGHT:						
-						dx = 1;
-						dy = 0;						
-						break;
-					case KEY_DOWN:						
-						dx = 0;
-						dy = 1;									
-						break;
-					case KEY_LEFT:					
-						dx = -1;
-						dy = 0;				
-						break;
+		if(!coord.is_failed) {
+			if(!is_paused && !key_pressed) {
+				if (key == KEY_UP && !down) {					
+					dx = 0, 
+					dy = -1;
+					key_pressed = true;
 					
+					left = false;
+					up = true;
+					right = false;
+					down = true;						
+				}
+				else if (key == KEY_RIGHT && !left) {
+					dx = 1;
+					dy = 0;
+					key_pressed = true;
+					
+					left = true;
+					up = false;
+					right = true;
+					down = false;					
+				}
+				else if (key == KEY_DOWN && !up) {
+					dx = 0;
+					dy = 1;
+					key_pressed = true;
+					
+					left = false;
+					up = true;
+					right = false;
+					down = true;								
+				}
+				else if (key == KEY_LEFT && !right) {
+					dx = -1;
+					dy = 0;
+					key_pressed = true;
+					
+					left = true;
+					up = false;
+					right = true;
+					down = false;	
 				}
 			}
 			
 			if(clock() - movt >= CPS * 0.2) {
 				move_snake(s, &length, &bonus, &coord, &dx, &dy);
 				movt += CPS * 0.2;
-				// key_pressed = 0;
+				key_pressed = false;
 			}
 		}
 		
 		switch(key) {
 			case key_pause:
-				if(coord.is_failed == 0)
+				if(!coord.is_failed)
 					pause(&dx, &dy, &save_x, &save_y, &is_paused);
 				break;
 			case key_escape:
@@ -315,7 +335,12 @@ int main() {
 			case key_new_game:
 				stop_snake(&(coord.is_failed), &dx, &dy);
 				is_paused = 0;
-
+				
+				left = false;
+				up = false;
+				right = false;
+				down = false;
+					
 				delete_snake(s, &length);
 				init(s, &bonus, &coord, &length);
 				break;
