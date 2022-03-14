@@ -7,6 +7,10 @@
 #define CPS CLOCKS_PER_SEC
 #define MAX_LENGTH 500
 #define SNAKE_BODY '&'
+#define UP '^'
+#define RIGHT '>'
+#define DOWN 'V'
+#define LEFT '<'
 #define BONUS '*'
 #define START_LENGTH 3
 // #define print(x, y, str) do{ move(y, x); printw(str); } while(0);
@@ -29,7 +33,7 @@ static const int snake_color = 1;
 static const int bonus_color = 2;
 
 void game_field(boundary *, int , int );	// create new game gield
-void show_head(int , int );
+void show_snake(int , int , int , int );
 void check_bonus(snake *, snake *, int *);
 void create_bonus(snake *);
 bool boundary_collision(boundary *, int , int );
@@ -53,8 +57,10 @@ void init(snake *s, snake *bonus, boundary *coord, int *length) {
 	for(i = 0; i < *length; i++) {
 		s[i].x = x - i;
 		s[i].y = y;
-		
-		show_head(s[i].x, s[i].y);	
+		if(i == 0)
+			show_snake(s[i].x, s[i].y, 1, 0);	// head
+		else
+			show_snake(s[i].x, s[i].y, 0, 0);	// body
 	}
 	create_bonus(bonus);
 }
@@ -72,10 +78,20 @@ void hide_tail(snake *s, snake *bonus, int *length) {
 	}
 }
 
-void show_head(int x, int y) {
+void show_snake(int x, int y, int dx, int dy) {
 	attr_set(A_BOLD, snake_color, NULL);
 	move(y, x);
-	addch(SNAKE_BODY);
+	if(dx == 0 && dy == 0)
+		addch(SNAKE_BODY);
+	else if(dx == 0 && dy == -1)
+		addch(UP);
+	else if(dx == 1 && dy == 0)
+		addch(RIGHT);
+	else if(dx == 0 && dy == 1)
+		addch(DOWN);	
+	else
+		addch(LEFT);
+
 	refresh();
 	
 	attr_set(A_NORMAL, std_color, NULL);
@@ -96,11 +112,12 @@ void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, i
 	}
 	
 	if(*dx != 0 || *dy != 0) {	
-		show_head(x, y);
+		show_snake(x, y, *dx, *dy);		// head
+		show_snake(s->x, s->y, 0, 0);	// prev head become body
 		hide_tail(s, bonus, length);
-
+		
 		memmove(s + 1, s, (*length) * (sizeof(s[0])));
-	
+
 		s->x = x;
 		s->y = y;
 		
