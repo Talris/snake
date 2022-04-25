@@ -113,7 +113,7 @@ void move_snake(snake *s, int *length, snake *bonus, boundary *coord, int *dx, i
 	
 	if(*dx != 0 || *dy != 0) {	
 		show_snake(x, y, *dx, *dy);		// head
-		show_snake(s->x, s->y, 0, 0);	// prev head become body
+		show_snake(s->x, s->y, 0, 0);	// prev head becomes body
 		hide_tail(s, bonus, length);
 		
 		memmove(s + 1, s, (*length) * (sizeof(s[0])));
@@ -176,9 +176,9 @@ void game_field(boundary *coord, int row, int col) {
 	coord->max_y = row - 1;				// down
 	
 	for(i = 0; i < row; i++) {
-		for(j = coord->min_x + 1; j < col; j++) {
-			move(i, coord->min_x);
-			printw("#");
+		move(i, coord->min_x);
+		printw("#");
+		for(j = coord->min_x + 1; j < coord->max_x; j++) {
 			if(i == coord->min_y || i == coord->max_y) {
 				move(i, j);
 				printw("#");
